@@ -239,19 +239,22 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
     return g;
 }
 
-std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t nu) const {
-    if (nu == 0) {
+std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t x) const {
+    if (x == 0) {
         throw std::runtime_error("Division by zero");
     }
-    uint64_t shift = 0;
-    big_integer res(*this);
+    uint64_t carry = 0;
+    big_integer res;
+    res.value.pop_back();
+    res.value.resize(value.size());
     for (int32_t i = static_cast<int32_t>(value.size()) - 1; i >= 0; i--) {
-        uint64_t cur = value[i] + shift * BLOCK_SIZE;
-        res.value[i] = static_cast<uint32_t>(cur / nu);
-        shift = cur % nu;
+        uint64_t cur_val = value[i] + carry * (uint64_t(UINT32_MAX) + 1);
+        res.value[i] = static_cast<uint32_t>(cur_val / x);
+        carry = cur_val % x;
     }
+    res.sign = res.is_zero() ? 1 : sign;
     res.shrink_to_fit();
-    return {res, shift};
+    return {res, carry};
 }
 
 big_integer operator*(big_integer const &f, big_integer const &s) {
@@ -276,31 +279,31 @@ big_integer operator*(big_integer const &f, big_integer const &s) {
 
 //these tree functions are only used in big_integer division
 bool big_integer::smaller(big_integer const &dq, uint64_t k, uint64_t m) const {
-    //TODO
     uint64_t i = m, j = 0;
     while (i != j) {
-        if (value[i + k] == dq.value[i]) {
+        if (value[i + k] != dq.value[i]) {
+            j = i;
+        } else {
             i--;
-            continue;
         }
-        break;
     }
     return value[i + k] < dq.value[i];
 }
 
-uint32_t big_integer::trial(uint64_t l, uint64_t r, uint64_t const num) const {
-    auto BASE = static_cast<__uint128_t>(BLOCK_SIZE);
-    uint64_t t = l + r;
-    __uint128_t res = (static_cast<__uint128_t>(value[t]) * BASE + value[t - 1]) * BASE + value[t - 2];
-    return uint32_t(std::min(res / static_cast<__uint128_t>(num), static_cast<__uint128_t>(UINT32_MAX)));
+uint32_t big_integer::trial(uint64_t k, uint64_t m, uint64_t const d2) const {
+    const __uint128_t BASE = __uint128_t(UINT32_MAX) + 1;
+    uint64_t km = k + m;
+    __uint128_t r3 = (__uint128_t(value[km]) * BASE + __uint128_t(value[km - 1])) * BASE + __uint128_t(value[km - 2]);
+    return uint32_t(std::min(r3 / __uint128_t(d2), __uint128_t(UINT32_MAX)));
 }
 
-void big_integer::difference(big_integer const &num, uint64_t l, uint64_t r) {
-    int64_t taken = 0, BASE = static_cast<int64_t>(BLOCK_SIZE), d;
-    for (uint64_t i = 0; i <= r; i++) {
-        d = static_cast<int64_t>(value[i + l]) - num.value[i] - taken + BASE;
-        value[i + l] = static_cast<uint32_t>(d % BASE);
-        taken = 1 - d / BASE;
+void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
+    int64_t borrow = 0, diff;
+    const int64_t BASE = int64_t(UINT32_MAX) + 1;
+    for (uint64_t i = 0; i < m + 1; i++) {
+        diff = int64_t(value[i + k]) - int64_t(dq.value[i]) - borrow + BASE;
+        value[i + k] = uint32_t(diff % BASE);
+        borrow = 1 - diff / BASE;
     }
 }
 
