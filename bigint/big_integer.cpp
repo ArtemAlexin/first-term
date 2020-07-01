@@ -307,7 +307,6 @@ void big_integer::difference(big_integer const &num, uint64_t l, uint64_t r) {
 }
 
 big_integer operator/(big_integer const &f, big_integer const &s) {
-    //TODO
     if (s.is_zero()) {
         throw std::runtime_error("Division by zero");
     }
@@ -391,48 +390,15 @@ big_integer operator<<(big_integer num, int32_t shift) {
     return num;
 }
 
-big_integer operator>>(big_integer const &a, int b) {
-    if (b < 0) {
-        return a << abs(b);
-    }
-    if (b == 0) {
-        return big_integer(a);
-    }
-    big_integer v(a);
-    uint32_t digit_shift = static_cast<uint32_t>(b), bitshift = digit_shift % BITS_NUM;
-    digit_shift /= BITS_NUM;
-    if (v.sign < 0) {
-        v = v.get_adding_code();
-        for (int32_t i = 0; i < static_cast<int32_t>(digit_shift) - 1; i++) {
-            v.value.push_back(UINT32_MAX);
-        }
-    }
-    if (digit_shift >= v.value.size()) {
-        return big_integer();
-    }
-    big_integer res;
-    res.value.pop_back();
-    for (uint32_t i = digit_shift; i < v.value.size(); i++) {
-        res.value.push_back(v.value[i]);
-    }
-    res.sign = v.sign;
-    for (uint32_t i = 0; i < res.value.size() - 1; i++) {
-        res.value[i] >>= bitshift;
-        uint32_t m = res.value[i + 1] << (BITS_NUM - bitshift);
-        res.value[i] += m;
-    }
-    res.value.back() >>= bitshift;
-    res.shrink_to_fit();
-    if (res.sign < 0) {
-        res.value.pop_back();
-    }
-    res = res.complement_to_unsigned();
-    return res;
+big_integer operator>>(big_integer a, int b) {
+    for (int i = 0; i < b / 32 && a.value.size(); i++) a.value.pop_back();
+    if (a < 0) a -= (uint64_t) (1ll << b % 32) - 1;
+    if (b % 32 == 31) a /= 2;
+    a /= (1 << std::min(30, b % 32));
+    return a;
 }
 
 bool operator==(big_integer const &a, big_integer const &b) {
-    int l = a.value.size();
-    int r = b.value.size();
     if (a.value.size() != b.value.size() || a.sign != b.sign) {
         return 0;
     }

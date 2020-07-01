@@ -85,7 +85,7 @@ struct big_integer {
 
     friend big_integer operator<<(big_integer, int32_t);
 
-    friend big_integer operator>>(big_integer const &, int32_t );
+    friend big_integer operator>>(big_integer, int32_t );
 
     friend std::string to_string(big_integer const &);
 
