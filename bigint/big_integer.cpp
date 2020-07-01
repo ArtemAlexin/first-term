@@ -324,7 +324,7 @@ big_integer operator/(big_integer a, big_integer const &b) {
     big_integer q, r = a * f, d = b * f;;
     q.value.resize(n - m + 1);
     q.sign = a.sign * b.sign,
-    r.sign = d.sign = 1;
+            r.sign = d.sign = 1;
     r.value.push_back(0);
     for (ptrdiff_t k = n - m; k >= 0; --k) {
         uint32_t qt = r.trial(static_cast<uint64_t>(k), m, d);
@@ -473,7 +473,3 @@ std::string to_string(big_integer const &a) {
     std::reverse(res.begin(), res.end());
     return res;
 }
-
-
-
-
