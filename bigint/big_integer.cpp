@@ -239,22 +239,20 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
     return g;
 }
 
-std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t x) const {
-    if (x == 0) {
+std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t nu) const {
+    if (nu == 0) {
         throw std::runtime_error("Division by zero");
     }
-    uint64_t carry = 0;
-    big_integer res;
-    res.value.pop_back();
-    res.value.resize(value.size());
+    uint64_t shift = 0;
+    big_integer res(*this);
     for (int32_t i = static_cast<int32_t>(value.size()) - 1; i >= 0; i--) {
-        uint64_t cur_val = value[i] + carry * (uint64_t(UINT32_MAX) + 1);
-        res.value[i] = static_cast<uint32_t>(cur_val / x);
-        carry = cur_val % x;
+        uint64_t cur = value[i] + shift * BLOCK_SIZE;
+        res.value[i] = static_cast<uint32_t>(cur / nu);
+        shift = cur % nu;
     }
-    res.sign = res.is_zero() ? 1 : sign;
+    res.sign = res.sign * getSign(nu >= 0);
     res.shrink_to_fit();
-    return {res, carry};
+    return {res, shift};
 }
 
 big_integer operator*(big_integer const &f, big_integer const &s) {
