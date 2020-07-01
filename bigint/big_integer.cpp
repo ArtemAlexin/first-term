@@ -381,7 +381,7 @@ big_integer operator^(big_integer const &a, big_integer const &b) {
 }
 
 big_integer operator<<(big_integer num, int32_t shift) {
-    uint64_t s = static_cast<uint64_t>(1 << (shift % 32));
+    uint64_t s = (static_cast<uint64_t>(1) << (shift % 32));
     num *= s;
     for (int i = 0; i < shift/ 32; i++) num.value.push_back(0);
     return num;
