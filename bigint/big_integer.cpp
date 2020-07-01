@@ -278,74 +278,72 @@ big_integer operator*(big_integer const &f, big_integer const &s) {
 
 //these tree functions are only used in big_integer division
 bool big_integer::smaller(big_integer const &dq, uint64_t k, uint64_t m) const {
-    //TODO
     uint64_t i = m, j = 0;
     while (i != j) {
-        if (value[i + k] == dq.value[i]) {
+        if (value[i + k] != dq.value[i]) {
+            j = i;
+        } else {
             i--;
-            continue;
         }
-        break;
     }
     return value[i + k] < dq.value[i];
 }
-
-uint32_t big_integer::trial(uint64_t l, uint64_t r, uint64_t const num) const {
-    const __uint128_t BASE = static_cast<__uint128_t>(BLOCK_SIZE);
-    uint64_t t = l + r;
-    __uint128_t res = (static_cast<__uint128_t>(value[t]) * BASE + value[t - 1]) * BASE + value[t - 2];
-    return uint32_t(std::min(res / static_cast<__uint128_t>(num), static_cast<__uint128_t>(UINT32_MAX)));
+uint32_t big_integer::trial(uint64_t k, uint64_t m, uint64_t const d2) const {
+    const __uint128_t BASE = __uint128_t(UINT32_MAX) + 1;
+    uint64_t km = k + m;
+    __uint128_t r3 = (__uint128_t(value[km]) * BASE + __uint128_t(value[km - 1])) * BASE + __uint128_t(value[km - 2]);
+    return uint32_t(std::min(r3 / __uint128_t(d2), __uint128_t(UINT32_MAX)));
 }
 
-void big_integer::difference(big_integer const &num, uint64_t l, uint64_t r) {
-    int64_t taken = 0, BASE = static_cast<int64_t>(BLOCK_SIZE), d;
-    for (uint64_t i = 0; i <= r; i++) {
-        d = static_cast<int64_t>(value[i + l]) - num.value[i] - taken + BASE;
-        value[i + l] = static_cast<uint32_t>(d % BASE);
-        taken = 1 - d / BASE;
+void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
+    int64_t borrow = 0, diff;
+    const int64_t BASE = int64_t(UINT32_MAX) + 1;
+    for (uint64_t i = 0; i < m + 1; i++) {
+        diff = int64_t(value[i + k]) - int64_t(dq.value[i]) - borrow + BASE;
+        value[i + k] = uint32_t(diff % BASE);
+        borrow = 1 - diff / BASE;
     }
 }
 
-big_integer operator/(big_integer const &f, big_integer const &s) {
-    if (s.is_zero()) {
+big_integer operator/(big_integer const &a, big_integer const &b) {
+    if (b.is_zero()) {
         throw std::runtime_error("Division by zero");
+    } else if (a.value.size() < b.value.size()) {
+        big_integer res;
+        return res;
+    } else if (b.value.size() == 1) {
+        return b.sign > 0 ? a.div_long_short(b.value[0]).first : -(a.div_long_short(b.value[0]).first);
     }
-    if (f.value.size() < s.value.size()) {
-        return big_integer();
-    }
-    if (s.value.size() == 1) {
-        if(s.sign == 1) {
-            return big_integer(f.div_long_short(s.value[0]).first);
-        } else {
-            return big_integer(-(f.div_long_short(s.value[0]).first));
-        }
-    }
-    int32_t res_sign = f.sign * s.sign;
-    size_t n = f.value.size(), m = s.value.size();
-    uint64_t sh = ((uint64_t) 1 << 32) / (static_cast<uint64_t>(s.value[m - 1]) + 1);
-    big_integer mrl = f * sh, mrr = s * sh;
-    mrl.value.push_back(0);
-    mrl.sign = 1; mrr.sign = 1;
+    int32_t res_sign = a.sign * b.sign;
+    auto n = a.value.size(), m = b.value.size();
+    auto f = (static_cast<uint64_t>(1) << 32) / (uint64_t(b.value[m - 1]) + 1);
+    big_integer r = a * f;
+    big_integer d = b * f;
+    r.sign = 1;
+    d.sign = 1;
     big_integer q;
     q.value.resize(n - m + 1);
-    const uint64_t d2 = (static_cast<uint64_t>(mrr.value[m - 1]) << 32) + mrr.value[m - 2];
-    for (auto k = static_cast<int32_t>(n - m); k >= 0; k--) {
-        auto qt = mrl.trial(uint64_t(k), m, d2);
+    r.value.push_back(0);
+    const uint64_t d2 = (uint64_t(d.value[m - 1]) << 32) + uint64_t(d.value[m - 2]);
+    for (auto k = int32_t(n - m); k >= 0; k--) {
+        // precondition: t has k + m + 1 digits
+        auto qt = r.trial(uint64_t(k), m, d2);
         big_integer qt_mul;
         qt_mul.value[0] = qt;
-        big_integer dq = qt_mul * mrr;
+        big_integer dq = qt_mul * d;
         dq.value.resize(m + 1);
-        if (mrl.smaller(dq, uint64_t(k), m)) {
+        if (r.smaller(dq, uint64_t(k), m)) {
             qt--;
-            dq = mrr * qt;
+            dq = d * qt;
         }
         q.value[k] = qt;
-        mrl.difference(dq, uint64_t(k), m);
+        r.difference(dq, uint64_t(k), m);
     }
     q.sign = res_sign;
     q.shrink_to_fit();
     return q;
 }
+
 
 big_integer operator%(big_integer const &f, big_integer const &s) {
     return f - (f / s) * s;
