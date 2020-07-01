@@ -10,6 +10,9 @@ struct big_integer {
 
     big_integer(big_integer const &);
 
+    big_integer(uint64_t);
+    big_integer(uint32_t);
+
     big_integer(int32_t);
 
     explicit big_integer(std::string const &);
@@ -80,7 +83,7 @@ struct big_integer {
 
     friend big_integer operator^(big_integer const &, big_integer const &);
 
-    friend big_integer operator<<(big_integer const &, int32_t);
+    friend big_integer operator<<(big_integer, int32_t);
 
     friend big_integer operator>>(big_integer const &, int32_t );
 

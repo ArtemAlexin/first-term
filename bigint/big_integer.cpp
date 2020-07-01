@@ -35,10 +35,20 @@ big_integer::big_integer() {
     value.push_back(0);
     sign = 1;
 }
-
+big_integer::big_integer(uint64_t num) {
+    sign = 1;
+    value.push_back(static_cast<uint32_t>(num & UINT32_MAX));
+    value.push_back(static_cast<uint32_t> (num >> 32));
+    shrink_to_fit();
+}
+big_integer::big_integer(uint32_t num) {
+    sign = 1;
+    value.push_back(num);
+}
 big_integer::big_integer(big_integer const &other) = default;
 
 big_integer::big_integer(int num) {
+
     if (num == INT32_MIN) {
         value.push_back((uint32_t)(INT32_MAX) + 1);
     } else {
@@ -195,7 +205,7 @@ big_integer operator+(big_integer const &f, big_integer const &s) {
             res.value.push_back(0);
         }
         uint64_t add = res.value[i] + shift + (i < s.value.size() ? s.value[i] : 0);
-        shift = (add >= (BLOCK_SIZE) ? 1 : 0);
+        shift = add >= BLOCK_SIZE;
         if (shift) {
             add -= BLOCK_SIZE;
         }
@@ -246,6 +256,8 @@ std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t nu) const 
 
 big_integer operator*(big_integer const &f, big_integer const &s) {
     big_integer res;
+    int l = f.value.size();
+    int r = s.value.size();
     res.value.resize(f.value.size() + s.value.size());
     uint64_t carry = 0;
     res.sign = f.sign * s.sign;
@@ -372,29 +384,11 @@ big_integer operator^(big_integer const &a, big_integer const &b) {
     return a.logical_op(a, b, xor_, xorSign);
 }
 
-big_integer operator<<(big_integer const &num, int32_t shift) {
-    if (shift < 0) {
-        return num >> -shift;
-    }
-    if (shift == 0) {
-        return big_integer(num);
-    }
-    uint32_t dh = static_cast<uint32_t>(shift), bitshift = dh % BITS_NUM, r = 0;
-    dh /= BITS_NUM;
-    big_integer res;
-    res.value.resize(dh);
-    for (uint32_t i : num.value) {
-        res.value.push_back(i);
-    }
-    res.sign = num.sign;
-    for (size_t i = dh; i < res.value.size(); i++) {
-        uint32_t nv = (res.value[i] << bitshift) + r;
-        r = res.value[i] >> (BITS_NUM - bitshift);
-        res.value[i] = nv;
-    }
-    res.value.push_back(r);
-    res.shrink_to_fit();
-    return res;
+big_integer operator<<(big_integer num, int32_t shift) {
+    uint64_t s = (static_cast<uint64_t>(1) << (shift % 32));
+    num *= s;
+    for (int i = 0; i < shift/ 32; i++) num.value.push_back(0);
+    return num;
 }
 
 big_integer operator>>(big_integer const &a, int b) {
@@ -437,6 +431,8 @@ big_integer operator>>(big_integer const &a, int b) {
 }
 
 bool operator==(big_integer const &a, big_integer const &b) {
+    int l = a.value.size();
+    int r = b.value.size();
     if (a.value.size() != b.value.size() || a.sign != b.sign) {
         return 0;
     }
