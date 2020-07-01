@@ -80,7 +80,7 @@ struct big_integer {
 
     friend big_integer operator^(big_integer const &, big_integer const &);
 
-    friend big_integer operator<<(big_integer const &, int32_t);
+    friend big_integer operator<<(big_integer, int32_t);
 
     friend big_integer operator>>(big_integer const &, int32_t );
 
@@ -128,10 +128,6 @@ big_integer operator&(big_integer const &, big_integer const &);
 big_integer operator|(big_integer const &, big_integer const &);
 
 big_integer operator^(big_integer const &, big_integer const &);
-
-big_integer operator<<(big_integer const &, int32_t);
-
-big_integer operator>>(big_integer const &, int32_t);
 
 bool operator==(big_integer const &, big_integer const &);
 
