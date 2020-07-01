@@ -138,19 +138,7 @@ big_integer &big_integer::operator^=(big_integer const &rhs) {
 }
 
 big_integer &big_integer::operator<<=(int rhs) {
-    big_integer res;
-    res.value.pop_back();
-    size_t d = static_cast<size_t>(rhs / 32u);
-    res.value.reserve(2u * (value.size() + d));
-    for (size_t i = 0; i < d; ++i) {
-        res.value.push_back(0);
-    }
-    for (unsigned int & i : value) {
-        res.value.push_back(i);
-    }
-    res *= (1u << rhs % 32u);
-    res.sign = this -> sign;
-    return *this = res;
+    return (*this = *this << rhs);
 }
 
 big_integer &big_integer::operator>>=(int rhs) {
@@ -384,8 +372,29 @@ big_integer operator^(big_integer const &a, big_integer const &b) {
     return a.logical_op(a, b, xor_, xorSign);
 }
 
-big_integer operator<<(big_integer num, int32_t shift) {
-    return num <<= shift;
+big_integer operator<<(big_integer const &num, int32_t shift) {
+    if (shift < 0) {
+        return num >> -shift;
+    }
+    if (shift == 0) {
+        return big_integer(num);
+    }
+    uint32_t dh = static_cast<uint32_t>(shift), bitshift = dh % BITS_NUM, r = 0;
+    dh /= BITS_NUM;
+    big_integer res;
+    res.value.resize(dh);
+    for (uint32_t i : num.value) {
+        res.value.push_back(i);
+    }
+    res.sign = num.sign;
+    for (size_t i = dh; i < res.value.size(); i++) {
+        uint32_t nv = (res.value[i] << bitshift) + r;
+        r = res.value[i] >> (BITS_NUM - bitshift);
+        res.value[i] = nv;
+    }
+    res.value.push_back(r);
+    res.shrink_to_fit();
+    return res;
 }
 
 big_integer operator>>(big_integer const &a, int b) {
