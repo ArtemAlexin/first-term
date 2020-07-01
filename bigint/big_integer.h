@@ -105,7 +105,7 @@ struct big_integer {
 
     bool smaller(big_integer const &, uint64_t, uint64_t) const;
 
-    uint32_t trial(uint64_t, uint64_t, uint64_t const) const;
+    uint32_t trial(uint64_t, uint64_t, big_integer const &) const;
 
     void difference(big_integer const &, uint64_t, uint64_t);
 

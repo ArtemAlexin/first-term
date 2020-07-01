@@ -250,7 +250,6 @@ std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t nu) const 
         res.value[i] = static_cast<uint32_t>(cur / nu);
         shift = cur % nu;
     }
-    res.sign = res.sign * getSign(nu >= 0);
     res.shrink_to_fit();
     return {res, shift};
 }
@@ -287,14 +286,12 @@ bool big_integer::smaller(big_integer const &dq, uint64_t k, uint64_t m) const {
     }
     return value[i + k] < dq.value[i];
 }
-
-uint32_t big_integer::trial(uint64_t k, uint64_t m, uint64_t const d2) const {
-    const __uint128_t BASE = __uint128_t(UINT32_MAX) + 1;
-    uint64_t km = k + m;
-    __uint128_t r3 = (__uint128_t(value[km]) * BASE + __uint128_t(value[km - 1])) * BASE + __uint128_t(value[km - 2]);
-    return uint32_t(std::min(r3 / __uint128_t(d2), __uint128_t(UINT32_MAX)));
+static const __uint128_t BASE = __uint128_t(UINT32_MAX) + 1;
+uint32_t big_integer::trial(uint64_t const k, uint64_t const m, big_integer const& d) const {
+    __uint128_t r3 = (static_cast<__uint128_t>(value[k + m]) * BASE + value[k + m - 1]) * BASE + value[k + m - 2];
+    uint64_t const d2 = (static_cast<uint64_t>(d.value[m - 1]) << 32u) + d.value[m - 2];
+    return static_cast<uint32_t>(std::min(r3 / d2, BASE - 1));
 }
-
 void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
     int64_t borrow = 0, diff;
     const int64_t BASE = int64_t(UINT32_MAX) + 1;
@@ -314,32 +311,25 @@ big_integer operator/(big_integer const &a, big_integer const &b) {
     } else if (b.value.size() == 1) {
         return b.sign > 0 ? a.div_long_short(b.value[0]).first : -(a.div_long_short(b.value[0]).first);
     }
-    int32_t res_sign = a.sign * b.sign;
-    auto n = a.value.size(), m = b.value.size();
-    auto f = (static_cast<uint64_t>(1) << 32) / (uint64_t(b.value[m - 1]) + 1);
-    big_integer r = a * f;
-    big_integer d = b * f;
-    r.sign = 1;
-    d.sign = 1;
-    big_integer q;
+    size_t n = a.value.size(), m = b.value.size();
+    uint64_t f = BASE / (static_cast<uint64_t>(b.value[m - 1]) + 1);
+    big_integer q, r = a * f, d = b * f;;
     q.value.resize(n - m + 1);
+    q.sign = a.sign * b.sign,
+    r.sign = d.sign = 1;
     r.value.push_back(0);
-    const uint64_t d2 = (uint64_t(d.value[m - 1]) << 32) + uint64_t(d.value[m - 2]);
-    for (auto k = int32_t(n - m); k >= 0; k--) {
-        // precondition: t has k + m + 1 digits
-        auto qt = r.trial(uint64_t(k), m, d2);
-        big_integer qt_mul;
-        qt_mul.value[0] = qt;
+    for (ptrdiff_t k = n - m; k >= 0; --k) {
+        uint32_t qt = r.trial(static_cast<uint64_t>(k), m, d);
+        big_integer qt_mul = big_integer(static_cast<uint64_t>(qt));
         big_integer dq = qt_mul * d;
         dq.value.resize(m + 1);
-        if (r.smaller(dq, uint64_t(k), m)) {
+        if (r.smaller(dq, static_cast<uint64_t>(k), m)) {
             qt--;
-            dq = d * qt;
+            dq = big_integer(d) * qt;
         }
         q.value[k] = qt;
-        r.difference(dq, uint64_t(k), m);
+        r.difference(dq, static_cast<uint64_t>(k), m);
     }
-    q.sign = res_sign;
     q.shrink_to_fit();
     return q;
 }
