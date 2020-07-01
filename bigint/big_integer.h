@@ -73,7 +73,7 @@ struct big_integer {
 
     friend big_integer operator*(big_integer const &, big_integer const &);
 
-    friend big_integer operator/(big_integer const &, big_integer const &);
+    friend big_integer operator/(big_integer, big_integer const &);
 
     friend big_integer operator%(big_integer const &, big_integer const &);
 
@@ -97,7 +97,7 @@ struct big_integer {
 
     big_integer complement_to_unsigned() const;
 
-    std::pair<big_integer, uint32_t> div_long_short(uint32_t x) const;
+    uint32_t div_long_short(uint32_t x);
 
     big_integer logical_op(big_integer const &, big_integer const &,
                            std::function<uint32_t(uint32_t , uint32_t)>,
@@ -122,7 +122,6 @@ big_integer operator-(big_integer const &, big_integer const &);
 
 big_integer operator*(big_integer const &, big_integer const &);
 
-big_integer operator/(big_integer const &, big_integer const &);
 
 big_integer operator%(big_integer const &, big_integer const &);
 

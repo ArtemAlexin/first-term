@@ -239,19 +239,23 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
     return g;
 }
 
-std::pair<big_integer, uint32_t> big_integer::div_long_short(uint32_t nu) const {
-    if (nu == 0) {
-        throw std::runtime_error("Division by zero");
+uint32_t big_integer::div_long_short(uint32_t val) {
+    if (val == 0) {
+        throw std::runtime_error("division by zero");
     }
-    uint64_t shift = 0;
-    big_integer res(*this);
-    for (int32_t i = static_cast<int32_t>(value.size()) - 1; i >= 0; i--) {
-        uint64_t cur = value[i] + shift * BLOCK_SIZE;
-        res.value[i] = static_cast<uint32_t>(cur / nu);
-        shift = cur % nu;
+    if (is_zero()) {
+        return 0;
+    }
+    big_integer res = *this;
+    uint32_t carry = 0;
+    for (size_t i = res.value.size(); i > 0; --i) {
+        uint64_t tmp = (static_cast<uint64_t>(carry) << 32u) + res.value[i - 1];
+        res.value[i - 1] = tmp / val;
+        carry = tmp % val;
     }
     res.shrink_to_fit();
-    return {res, shift};
+    *this = res;
+    return carry;
 }
 
 big_integer operator*(big_integer const &f, big_integer const &s) {
@@ -302,14 +306,18 @@ void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
     }
 }
 
-big_integer operator/(big_integer const &a, big_integer const &b) {
+big_integer operator/(big_integer a, big_integer const &b) {
     if (b.is_zero()) {
         throw std::runtime_error("Division by zero");
     } else if (a.value.size() < b.value.size()) {
         big_integer res;
         return res;
     } else if (b.value.size() == 1) {
-        return b.sign > 0 ? a.div_long_short(b.value[0]).first : -(a.div_long_short(b.value[0]).first);
+        a.div_long_short(b.value[0]);
+        if(b.sign == -1) {
+            a = -a;
+        }
+        return a;
     }
     size_t n = a.value.size(), m = b.value.size();
     uint64_t f = BASE / (static_cast<uint64_t>(b.value[m - 1]) + 1);
@@ -456,9 +464,8 @@ std::string to_string(big_integer const &a) {
         return "0";
     }
     while (!cur.is_zero()) {
-        auto div_res = cur.div_long_short(10);
-        cur = div_res.first;
-        res.push_back('0' + char(div_res.second));
+        uint32_t  c = cur.div_long_short(10);
+        res.push_back('0' + char(c));
     }
     if (is_negative) {
         res.push_back('-');
