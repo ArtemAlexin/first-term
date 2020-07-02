@@ -58,19 +58,20 @@ private:
     size_t capacity_;
 
     void extend();
-
-    void reBuild(size_t cap);
+    void reduceSize(size_t cap);
+    static void deleteAllElements(T*, size_t);
+    static T* newArr(T*, size_t, size_t);
 };
 
 template<typename T>
-void deleteAllElements(T *src, size_t size) {
-    for (size_t i = 0; i < size; i++) {
-        src[i].~T();
+void vector<T>::deleteAllElements(T *src, size_t size) {
+    for (size_t i = size; i > 0; i--) {
+        src[i - 1].~T();
     }
 }
 
 template<typename T>
-T* newArr(T *src, size_t size, size_t cap) {
+T* vector<T>::newArr(T *src, size_t size, size_t cap) {
     size_t i = 0;
     T *arr = static_cast<T *>(operator new(sizeof(T) * cap));
     try {
@@ -118,6 +119,15 @@ template<typename T>
 T const &vector<T>::operator[](size_t id) const noexcept {
     return data_[id];
 }
+template<typename T>
+size_t vector<T>::size() const noexcept {
+    return size_;
+}
+
+template<typename T>
+size_t vector<T>::capacity() const noexcept {
+    return capacity_;
+}
 
 template<typename T>
 T const *vector<T>::data() const noexcept {
@@ -132,16 +142,6 @@ T *vector<T>::data() noexcept {
 template<typename T>
 T &vector<T>::front() noexcept {
     return data_[0];
-}
-
-template<typename T>
-size_t vector<T>::size() const noexcept {
-    return size_;
-}
-
-template<typename T>
-size_t vector<T>::capacity() const noexcept {
-    return capacity_;
 }
 
 template<typename T>
@@ -166,14 +166,14 @@ bool vector<T>::empty() const noexcept {
 }
 
 template<typename T>
-void vector<T>::reBuild(size_t cap) {
+void vector<T>::reduceSize(size_t cap) {
     if (capacity_ == cap)
         return;
     assert(cap >= size_);
     T *tmp = newArr(data_, size_, cap);
-    capacity_ = cap;
     deleteAllElements(data_, size_);
     operator delete(data_);
+    capacity_ = cap;
     data_ = tmp;
 }
 
@@ -181,7 +181,7 @@ template<typename T>
 void vector<T>::shrink_to_fit() {
     if (!empty()) {
         if (size_ < capacity_) {
-            reBuild(size_);
+            reduceSize(size_);
         }
         return;
     }
@@ -197,11 +197,11 @@ void vector<T>::clear() noexcept {
 template<typename T>
 void vector<T>::push_back(const T &v) {
     if (size_ < capacity_) {
-        new(end()) T(v);
+        new(data_ + size_) T(v);
     } else {
         T tmp = v;
         extend();
-        new(end()) T(tmp);
+        new(data_ + size_) T(tmp);
     }
     size_++;
 }
@@ -214,7 +214,7 @@ void vector<T>::pop_back() noexcept {
 template<typename T>
 void vector<T>::reserve(size_t cap) {
     if (capacity_ < cap) {
-        reBuild(cap);
+        reduceSize(cap);
     }
 }
 
@@ -226,16 +226,6 @@ void vector<T>::swap(vector &w) noexcept {
     swap(capacity_, w.capacity_);
 }
 template<typename T>
-typename vector<T>::iterator vector<T>::end() noexcept {
-    return data_ + size_;
-}
-
-template<typename T>
-typename vector<T>::const_iterator vector<T>::end() const noexcept {
-    return data_ + size_;
-}
-
-template<typename T>
 typename vector<T>::iterator vector<T>::begin() noexcept {
     return data_;
 }
@@ -246,13 +236,19 @@ typename vector<T>::const_iterator vector<T>::begin() const noexcept {
 }
 
 template<typename T>
+typename vector<T>::iterator vector<T>::end() noexcept {
+    return data_ + size_;
+}
+
+template<typename T>
+typename vector<T>::const_iterator vector<T>::end() const noexcept {
+    return data_ + size_;
+}
+
+template<typename T>
 void vector<T>::extend() {
     assert(size_ == capacity_);
-    if (capacity_ == 0) {
-        reBuild(1);
-    } else {
-        reBuild(2 * capacity_);
-    }
+    reduceSize((capacity_ == 0) ? 1 : 2 * capacity_);
 }
 
 template<typename T>
