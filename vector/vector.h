@@ -63,9 +63,9 @@ private:
 };
 
 template<typename T>
-void deleteAllElements(T *data, size_t size) {
+void deleteAllElements(T *src, size_t size) {
     for (size_t i = 0; i < size; i++) {
-        data[i].~T();
+        src[i].~T();
     }
 }
 
