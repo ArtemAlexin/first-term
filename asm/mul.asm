@@ -18,6 +18,8 @@ _start:
 ;rdi - adress of two long numbers product
                 call            mul_long_long
 ;write product to stdout
+                mov             rcx, 256
+                mov             rdi, rsi
                 call            write_long
 ;write /n
                 mov             al, 0x0a
