@@ -1,37 +1,97 @@
-           section         .text
-
+section         .text
+ 
                 global          _start
 _start:
-                sub             rsp, 4 * 128 * 8
-                lea             rdi, [rsp]
-                mov             rcx, 128
-                call            read_long
+;free space for 2 long numbers
+                sub             rsp, 2 * 128 * 8
+;adress of the second number in rdi
                 lea             rdi, [rsp + 128 * 8]
+;length of long number
+                mov             rcx, 128
+;new long number is in rdi
                 call            read_long
-                lea             rsi, [rsp + 128 * 8]
+;read another long to the rsp adress
                 mov             rdi, rsp
-                lea             r8, [rsi + 128 * 8]
-
+                call            read_long
+;rsi - begining of the second number, rdi - beggining of the first number
+                lea             rsi, [rsp + 128 * 8]
+;rdi - adress of two long numbers product
                 call            mul_long_long
-                mov             rdi, r8
-                shl             rcx, 1
+;write product to stdout
                 call            write_long
-
+;write /n
                 mov             al, 0x0a
                 call            write_char
-
+;exit the programm
                 jmp             exit
-
-; adds two long number
-;    rdi -- address of summand #1 (128 qwords)
-;    rsi -- address of summand #2 (128 qwords)
+ 
+; multiplies two long numbers
+;    rdi -- address of first long number
+;    rsi -- address of second long number
 ;    rcx -- length of long numbers in qwords
 ; result:
-;    sum is written to rdi (rcx + 1 qwords)
-add_long_long:
+;    product is written to rdi
+mul_long_long:
                 push            rcx
+                push            rsi
+;cleats carry flag
+                clc
+;free space for result of product(register r8)
+                lea             r8, [buffer + 2000]
+;copy length to r9(rcx will be changed during other operations)
+                mov             r9, rcx
+;multiplies new qword of the second number by first number and adds to the result(with neccesary shifts), like usual long multiplication
+.sum_loop:
+;rbx - first qword of long number
+                mov             rbx, [rsi]
+;rsi - adress of next qword
+                add             rsi, 8
+;next qword = 0 -> it is not neccesary to multiply anything -> just shift the number(this situation is standed out, because further there will be devision by rbx)
+                or              rbx, rbx
+                jz              .shift_qword_left
 
-                add             rcx, 1
+;rdi - adress long number and read qword product
+                call            mul_long_short
+				push            rdi                
+				push            rsi
+;map rdi -> r8(result), rsi -> rdi(new summand)
+                mov             rsi, rdi
+                mov             rdi, r8
+;number at rdi(r8)+=number(rsi), adds new summand to the current result
+                call            add_long_long
+                pop             rsi
+                pop             rdi
+;number at the rdi adress may be changed, we want to write there initial value(it is done to minimize value of spent memory)
+                call            div_long_short
+;we need to shift number 1 qword left <=> 2 dwords left
+;shifts number at rdi one qword left
+.shift_qword_left:
+;rbx stores size of dword, because qword does not fit into the 64-bit register
+                mov             rbx, 4294967296
+;shifts number one dword left
+                call            mul_long_short
+;shifst number one dword left
+                call			mul_long_short
+                dec             r9
+;r9 == 0 -> all qword have been added to the result
+                jnz             .sum_loop
+;all qwords are passed, rdi -> product
+                mov             rdi, r8
+                pop             rsi
+				pop             rcx
+                ret
+ 
+; adds two long number
+;    rdi -- address of summand #1 (long number)
+;    rsi -- address of summand #2 (long number)
+;    rcx -- length of long numbers in qwords
+; result:
+;    sum is written to rdi
+add_long_long:
+                push            rdi
+                push            rsi
+                push            rcx
+ 
                 clc
 .loop:
                 mov             rax, [rsi]
@@ -40,10 +100,12 @@ add_long_long:
                 lea             rdi, [rdi + 8]
                 dec             rcx
                 jnz             .loop
-
+ 
                 pop             rcx
+                pop             rsi
+                pop             rdi
                 ret
-
+ 
 ; adds 64-bit number to long number
 ;    rdi -- address of summand #1 (long number)
 ;    rax -- summand #2 (64-bit unsigned)
@@ -54,7 +116,7 @@ add_long_short:
                 push            rdi
                 push            rcx
                 push            rdx
-
+ 
                 xor             rdx,rdx
 .loop:
                 add             [rdi], rax
@@ -64,98 +126,43 @@ add_long_short:
                 add             rdi, 8
                 dec             rcx
                 jnz             .loop
-
+ 
                 pop             rdx
                 pop             rcx
                 pop             rdi
                 ret
-
+ 
 ; multiplies long number by a short
 ;    rdi -- address of multiplier #1 (long number)
 ;    rbx -- multiplier #2 (64-bit unsigned)
 ;    rcx -- length of long number in qwords
+;    rsi -- didn't change
 ; result:
-;    product is written to r9 which contains rcx + 1 qwords
+;    product is written to rdi
 mul_long_short:
                 push            rax
                 push            rdi
                 push            rcx
                 push            rsi
-                push            r9
-
+ 
                 xor             rsi, rsi
 .loop:
                 mov             rax, [rdi]
                 mul             rbx
                 add             rax, rsi
                 adc             rdx, 0
-                mov             [r9], rax
+                mov             [rdi], rax
                 add             rdi, 8
-                add             r9, 8
                 mov             rsi, rdx
                 dec             rcx
                 jnz             .loop
-
-                mov             [r9], rsi
-                
-                pop             r9
+ 
                 pop             rsi
                 pop             rcx
                 pop             rdi
                 pop             rax
                 ret
-
-; multiplies long number by a long
-;    rdi -- address of multiplier #1 (128 qwords)
-;    rsi -- address of multiplier #2 (128 qwords)
-;    rcx -- length of number in qwords (128 qword)
-;    r9 --- buffer for mul_long_short (rcx + 1 qwords)
-; result:
-;    product is written to r8 (256 qwords)
-
-mul_long_long:
-                push            r8
-                push            rcx
-                
-                mov             rbp, rsp
-                lea             r10, [(rcx + 1) * 8]
-                sub             rsp, r10
-                mov             r9, rsp
-                
-                mov             r10, rcx
-.loop:
-                mov             rbx, [rsi]
-                
-                push            rcx
-                mov             rcx, r10
-                call            mul_long_short
-                pop             rcx
-                
-                push            rdi
-                push            rsi
-                mov             rsi, r9
-                mov             rdi, r8
-                
-                push            rcx
-                mov             rcx, r10
-                call            add_long_long
-                pop             rcx
-                
-                pop             rsi
-                pop             rdi
-                
-                add             r8, 8
-                
-                add             rsi, 8
-                dec             rcx
-                jnz             .loop
-
-                mov             rsp, rbp
-                
-                pop             rcx
-                pop             r8
-                ret
-
+ 
 ; divides long number by a short
 ;    rdi -- address of dividend (long number)
 ;    rbx -- divisor (64-bit unsigned)
@@ -167,10 +174,10 @@ div_long_short:
                 push            rdi
                 push            rax
                 push            rcx
-
+ 
                 lea             rdi, [rdi + 8 * rcx - 8]
                 xor             rdx, rdx
-
+ 
 .loop:
                 mov             rax, [rdi]
                 div             rbx
@@ -178,12 +185,12 @@ div_long_short:
                 sub             rdi, 8
                 dec             rcx
                 jnz             .loop
-
+ 
                 pop             rcx
                 pop             rax
                 pop             rdi
                 ret
-
+ 
 ; assigns a zero to long number
 ;    rdi -- argument (long number)
 ;    rcx -- length of long number in qwords
@@ -191,15 +198,15 @@ set_zero:
                 push            rax
                 push            rdi
                 push            rcx
-
+ 
                 xor             rax, rax
                 rep stosq
-
+ 
                 pop             rcx
                 pop             rdi
                 pop             rax
                 ret
-
+ 
 ; checks if a long number is a zero
 ;    rdi -- argument (long number)
 ;    rcx -- length of long number in qwords
@@ -209,22 +216,22 @@ is_zero:
                 push            rax
                 push            rdi
                 push            rcx
-
+ 
                 xor             rax, rax
                 rep scasq
-
+ 
                 pop             rcx
                 pop             rdi
                 pop             rax
                 ret
-
+ 
 ; read long number from stdin
 ;    rdi -- location for output (long number)
 ;    rcx -- length of long number in qwords
 read_long:
                 push            rcx
                 push            rdi
-
+ 
                 call            set_zero
 .loop:
                 call            read_char
@@ -236,19 +243,18 @@ read_long:
                 jb              .invalid_char
                 cmp             rax, '9'
                 ja              .invalid_char
-
+ 
                 sub             rax, '0'
                 mov             rbx, 10
-                mov             r9, rdi
                 call            mul_long_short
                 call            add_long_short
                 jmp             .loop
-
+ 
 .done:
                 pop             rdi
                 pop             rcx
                 ret
-
+ 
 .invalid_char:
                 mov             rsi, invalid_char_msg
                 mov             rdx, invalid_char_msg_size
@@ -256,7 +262,7 @@ read_long:
                 call            write_char
                 mov             al, 0x0a
                 call            write_char
-
+ 
 .skip_loop:
                 call            read_char
                 or              rax, rax
@@ -264,21 +270,21 @@ read_long:
                 cmp             rax, 0x0a
                 je              exit
                 jmp             .skip_loop
-
+ 
 ; write long number to stdout
 ;    rdi -- argument (long number)
 ;    rcx -- length of long number in qwords
 write_long:
                 push            rax
                 push            rcx
-
+ 
                 mov             rax, 20
                 mul             rcx
                 mov             rbp, rsp
                 sub             rsp, rax
-
+ 
                 mov             rsi, rbp
-
+ 
 .loop:
                 mov             rbx, 10
                 call            div_long_short
@@ -287,16 +293,16 @@ write_long:
                 mov             [rsi], dl
                 call            is_zero
                 jnz             .loop
-
+ 
                 mov             rdx, rbp
                 sub             rdx, rsi
                 call            print_string
-
+ 
                 mov             rsp, rbp
                 pop             rcx
                 pop             rax
                 ret
-
+ 
 ; read one char from stdin
 ; result:
 ;    rax == -1 if error occurs
@@ -304,20 +310,20 @@ write_long:
 read_char:
                 push            rcx
                 push            rdi
-
+ 
                 sub             rsp, 1
                 xor             rax, rax
                 xor             rdi, rdi
                 mov             rsi, rsp
                 mov             rdx, 1
                 syscall
-
+ 
                 cmp             rax, 1
                 jne             .error
                 xor             rax, rax
-                mov             al, [rsp] 
+                mov             al, [rsp]
                 add             rsp, 1
-
+ 
                 pop             rdi
                 pop             rcx
                 ret
@@ -327,13 +333,13 @@ read_char:
                 pop             rdi
                 pop             rcx
                 ret
-
+ 
 ; write one char to stdout, errors are ignored
 ;    al -- char
 write_char:
                 sub             rsp, 1
                 mov             [rsp], al
-
+ 
                 mov             rax, 1
                 mov             rdi, 1
                 mov             rsi, rsp
@@ -341,27 +347,33 @@ write_char:
                 syscall
                 add             rsp, 1
                 ret
-
+ 
 exit:
                 mov             rax, 60
                 xor             rdi, rdi
                 syscall
-
+ 
 ; print string to stdout
 ;    rsi -- string
 ;    rdx -- size
 print_string:
                 push            rax
-
+ 
                 mov             rax, 1
                 mov             rdi, 1
                 syscall
-
+ 
                 pop             rax
                 ret
-
-
+ 
+ 
                 section         .rodata
 invalid_char_msg:
                 db              "Invalid character: "
 invalid_char_msg_size: equ             $ - invalid_char_msg
+ 
+                section         .bss
+; declaring buffer as automatically zero-filled variable at runtime
+buffer:
+                resb 128
+; declaring space for storing data in bytes
