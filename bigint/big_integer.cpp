@@ -18,13 +18,13 @@ static uint32_t or_(uint32_t f, uint32_t s) {
     return f | s;
 }
 static int32_t andSign(int32_t f, int32_t s) {
-    return getSign(f > 0 || s > 0);
-}
-static uint32_t xorSign(int32_t f, int32_t s) {
-    return getSign(f > 0 && s > 0);
+    return getSign(f >= 0 || s >= 0);
 }
 static uint32_t orSign(int32_t f, int32_t s) {
-    return getSign((f > 0 || s < 0) && (f < 0 || s > 0));
+    return getSign(f >= 0 && s >= 0);
+}
+static uint32_t xorSign(int32_t f, int32_t s) {
+    return getSign((f >= 0 || s <= 0) && (f <= 0 || s >= 0));
 }
 
 void big_integer::updateSign(bool cond) {
@@ -60,6 +60,7 @@ big_integer::big_integer(int num) {
 big_integer::big_integer(std::string const &s) {
     big_integer shift = 1;
     value.push_back(0);
+    this->sign = 1;
     for (int32_t i = static_cast<int32_t>(s.length() - 1); i >= 0; i--) {
         if (s[i] == '-') {
             break;
@@ -258,17 +259,16 @@ uint32_t big_integer::div_long_short(uint32_t val) {
     return carry;
 }
 
-big_integer operator*(big_integer const &f, big_integer const &s) {
+big_integer operator*(big_integer const &a, big_integer const &b) {
     big_integer res;
-    res.value.resize(f.value.size() + s.value.size());
+    res.value.resize(a.value.size() + b.value.size());
     uint64_t carry = 0;
-    res.sign = f.sign * s.sign;
-    for (uint32_t i = 0; i < f.value.size(); i++) {
-        for (uint32_t j = 0; j < s.value.size() || carry; j++) {
-            __uint128_t mul_res = res.value[i + j] + static_cast<__uint128_t> (f.value[i])
-                                                     * (j < s.value.size() ? s.value[j] : 0) + carry;
-            res.value[i + j] = static_cast<uint32_t>(mul_res % BLOCK_SIZE);
-            carry = static_cast<uint32_t>(mul_res / BLOCK_SIZE);
+    res.sign = a.sign * b.sign;
+    for (uint32_t i = 0; i < a.value.size(); i++) {
+        for (uint32_t j = 0; j < b.value.size() || carry; j++) {
+            __uint128_t mul_res = res.value[i + j] + a.value[i] * 1ull * (j < b.value.size() ? b.value[j] : 0) + carry;
+            res.value[i + j] = static_cast<uint32_t>(mul_res % (uint64_t(UINT32_MAX) + 1));
+            carry = static_cast<uint32_t>(mul_res / (uint64_t(UINT32_MAX) + 1));
         }
     }
     res.shrink_to_fit();
@@ -378,20 +378,78 @@ big_integer operator|(big_integer const &a, big_integer const &b) {
 big_integer operator^(big_integer const &a, big_integer const &b) {
     return a.logical_op(a, b, xor_, xorSign);
 }
-
-big_integer operator<<(big_integer num, int32_t shift) {
-    uint64_t s = (static_cast<uint64_t>(1) << (shift % 32));
-    num *= s;
-    for (int i = 0; i < shift/ 32; i++) num.value.push_back(0);
-    return num;
+static const uint32_t BITS_IN_DIGIT = 32;
+big_integer operator<<(big_integer a, int32_t b) {
+    if (b < 0) {
+        return a >> abs(b);
+    } else if (b == 0) {
+        return big_integer(a);
+    }
+    auto digit_shift = static_cast<uint32_t>(b);
+    auto bitshift = digit_shift % BITS_IN_DIGIT;
+    digit_shift /= BITS_IN_DIGIT;
+    big_integer res;
+    res.value.pop_back();
+    for (uint32_t i = 0; i < digit_shift; i++) {
+        res.value.push_back(0);
+    }
+    for (auto i : a.value) {
+        res.value.push_back(i);
+    }
+    uint32_t remainder = 0;
+    for (size_t i = digit_shift; i < res.value.size(); i++) {
+        uint32_t tmp = (res.value[i] << bitshift);
+        tmp += remainder;
+        remainder = (res.value[i] >> (BITS_IN_DIGIT - bitshift));
+        res.value[i] = tmp;
+    }
+    res.value.push_back(remainder);
+    res.shrink_to_fit();
+    res.sign = res.is_zero() ? 1 : a.sign;
+    return res;
 }
 
 big_integer operator>>(big_integer a, int b) {
-    for (int i = 0; i < b / 32 && !a.value.empty(); i++) a.value.pop_back();
-    if (a < 0) a -= (uint64_t) (static_cast<uint64_t>(1) << b % 32) - 1;
-    if (b % 32 == 31) a /= 2;
-    a /= (static_cast<uint64_t>(1) << std::min(30, b % 32));
-    return a;
+    if (b < 0) {
+        return a << abs(b);
+    } else if (b == 0) {
+        return big_integer(a);
+    }
+    big_integer num = a;
+    auto digit_shift = static_cast<uint32_t>(b);
+    auto bitshift = digit_shift % BITS_IN_DIGIT;
+    digit_shift /= BITS_IN_DIGIT;
+    if (num.sign < 0) {
+        num = num.get_adding_code();
+        // adding leading infinite 111... sequence for negative number to emulate two's complement.
+        // first 111... uint32_t already got in get_adding_code();
+        for (int32_t i = 0; i < int32_t(digit_shift) - 1; i++) {
+            num.value.push_back(UINT32_MAX);
+        }
+    }
+    big_integer res;
+    if (digit_shift >= num.value.size()) {
+        return res;
+    }
+    res.value.pop_back();
+    for (uint32_t i = digit_shift; i < num.value.size(); i++) {
+        res.value.push_back(num.value[i]);
+    }
+    for (uint32_t i = 0; i < res.value.size() - 1; i++) {
+        res.value[i] >>= bitshift;
+        // getting last bits
+        uint32_t moving_part = res.value[i + 1] << (BITS_IN_DIGIT - bitshift);
+        res.value[i] += moving_part;
+    }
+    res.value[res.value.size() - 1] >>= bitshift;
+    res.shrink_to_fit();
+    res.sign = num.sign;
+    if (res.sign < 0) {
+        res.value.pop_back();  // remove leading infinite 111... sequence for negative number.
+    }
+    res = res.complement_to_unsigned();
+    res.sign = res.is_zero() ? 1 : res.sign;
+    return res;
 }
 
 bool operator==(big_integer const &a, big_integer const &b) {
