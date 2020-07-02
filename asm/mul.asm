@@ -15,11 +15,13 @@ _start:
                 call            read_long
 ;rsi - begining of the second number, rdi - beggining of the first number
                 lea             rsi, [rsp + 128 * 8]
+                sub             rsp, 256 * 8
+                mov             rbp, rsp
 ;rdi - adress of two long numbers product
                 call            mul_long_long
-;write product to stdout
                 mov             rcx, 256
-                mov             rdi, rsi
+                mov             rdi, rbp
+;write product to stdout
                 call            write_long
 ;write /n
                 mov             al, 0x0a
