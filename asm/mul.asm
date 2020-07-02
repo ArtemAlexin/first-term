@@ -37,7 +37,7 @@ mul_long_long:
 ;cleats carry flag
                 clc
 ;free space for result of product(register r8)
-                lea             r8, [buffer + 2000]
+                lea             r8, [buffer + 4000]
 ;copy length to r9(rcx will be changed during other operations)
                 mov             r9, rcx
 ;multiplies new qword of the second number by first number and adds to the result(with neccesary shifts), like usual long multiplication
