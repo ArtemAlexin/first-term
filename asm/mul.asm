@@ -2,7 +2,7 @@
  global          _start
 
 SIZE equ 1024
-LENGTH equ LENGTH
+LENGTH equ 128
 
 _start:
 
