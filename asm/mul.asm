@@ -1,21 +1,22 @@
  section         .text
  global          _start
 
-NUMBER_SIZE equ 1024
+SIZE equ 1024
+LENGTH equ LENGTH
 
 _start:
 
-                sub             rsp, 4 * NUMBER_SIZE
-                mov             rcx, 128
+                sub             rsp, 4 * SIZE
+                mov             rcx, LENGTH
                 lea             rdi, [rsp]
                 call            read_long
-                lea             rdi, [rsp + NUMBER_SIZE]
+                lea             rdi, [rsp + SIZE]
                 call            read_long
                 lea             rsi, [rsp]
-                lea             r10, [rsp + 2 * NUMBER_SIZE]
+                lea             r10, [rsp + 2 * SIZE]
                 call            mul_long_long
                
-		mov             rdi, r10
+				mov             rdi, r10
                 mov             rcx, 256
                 call            write_long
 
@@ -34,7 +35,7 @@ mul_long_long:
                 push            rsi
 		push            rdi		
 
-		mov             rcx, 2 * 128               
+		mov             rcx, 2 * LENGTH               
                 mov             r9, rcx
 
 ;it is neccesary to fill current result with zeroes
@@ -44,7 +45,7 @@ mul_long_long:
                 
 ;move to the last "digit"
 		lea             rdi, [rdi + 8 * r9 - 8]		
-                sub             rsp, 2 * NUMBER_SIZE
+                sub             rsp, 2 * SIZE
                 lea             r8, [rsp]
  		clc
 ;multiplying loop
@@ -69,7 +70,7 @@ mul_long_long:
                 call            set_zero
                
 ;we need to save the number in r8
-                mov             rcx, 128
+                mov             rcx, LENGTH
                 call            add_long_long
                 add             rcx, rcx
 
@@ -86,7 +87,7 @@ mul_long_long:
                 jnz             .loop
 
 ;roll back to the original rsp
-                add             rsp, 2 * NUMBER_SIZE
+                add             rsp, 2 * SIZE
                 pop             rsi
        		pop             rcx
 	        ret
