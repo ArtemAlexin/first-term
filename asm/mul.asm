@@ -1,87 +1,98 @@
-section         .text
- 
-                global          _start
+ section         .text
+ global          _start
+
+NUMBER_SIZE equ 1024
+
 _start:
-;free space for 2 long numbers
-                sub             rsp, 2 * 128 * 8
-;adress of the second number in rdi
-                lea             rdi, [rsp + 128 * 8]
-;length of long number
+
+                sub             rsp, 4 * NUMBER_SIZE
                 mov             rcx, 128
-;new long number is in rdi
+                lea             rdi, [rsp]
                 call            read_long
-;read another long to the rsp adress
-                mov             rdi, rsp
+                lea             rdi, [rsp + NUMBER_SIZE]
                 call            read_long
-;rsi - begining of the second number, rdi - beggining of the first number
-                lea             rsi, [rsp + 128 * 8]
-;rdi - adress of two long numbers product
+                lea             rsi, [rsp]
+                lea             r10, [rsp + 2 * NUMBER_SIZE]
                 call            mul_long_long
-;write product to stdout
+               
+		mov             rdi, r10
+                mov             rcx, 256
                 call            write_long
-;write /n
+
                 mov             al, 0x0a
                 call            write_char
-;exit the programm
                 jmp             exit
- 
-; multiplies two long numbers
-;    rdi -- address of first long number
-;    rsi -- address of second long number
-;    rcx -- length of long numbers in qwords
-; result:
-;    product is written to rdi
-mul_long_long:
-                push            rcx
-                push            rsi
-;cleats carry flag
-                clc
-;free space for result of product(register r8)
-                lea             r8, [buffer + 2000]
-;copy length to r9(rcx will be changed during other operations)
-                mov             r9, rcx
-;multiplies new qword of the second number by first number and adds to the result(with neccesary shifts), like usual long multiplication
-.sum_loop:
-;rbx - first qword of long number
-                mov             rbx, [rsi]
-;rsi - adress of next qword
-                add             rsi, 8
-;next qword = 0 -> it is not neccesary to multiply anything -> just shift the number(this situation is standed out, because further there will be devision by rbx)
-                or              rbx, rbx
-                jz              .shift_qword_left
 
-;rdi - adress long number and read qword product
-                call            mul_long_short
-				push            rdi                
-				push            rsi
-;map rdi -> r8(result), rsi -> rdi(new summand)
-                mov             rsi, rdi
-                mov             rdi, r8
-;number at rdi(r8)+=number(rsi), adds new summand to the current result
-                call            add_long_long
-                pop             rsi
+; multiplies two long number
+;    rdi -- address of multiplier #1
+;    rsi -- address of multiplier #2
+;    rcx -- length of long numbers(qwords)
+; result:
+;    r10 -- address of product
+mul_long_long:
+		push            rcx
+                push            rsi
+		push            rdi		
+
+		mov             rcx, 2 * 128               
+                mov             r9, rcx
+
+;it is neccesary to fill current result with zeroes
+                mov             rdi, r10
+                call            set_zero
                 pop             rdi
-;number at the rdi adress may be changed, we want to write there initial value(it is done to minimize value of spent memory)
-                call            div_long_short
-;we need to shift number 1 qword left <=> 2 dwords left
-;shifts number at rdi one qword left
-.shift_qword_left:
-;rbx stores size of dword, because qword does not fit into the 64-bit register
-                mov             rbx, 4294967296
-;shifts number one dword left
+                
+;move to the last "digit"
+		lea             rdi, [rdi + 8 * r9 - 8]		
+                sub             rsp, 2 * NUMBER_SIZE
+                lea             r8, [rsp]
+ 		clc
+;multiplying loop
+.loop:
+;we need to shift left the result one category, namely multiply it by qword size(4294967296 * 2)
+;but as the qword size doesn't fit the register, we will multiply r10 by dword size twice 
+		push            rdi               
+		mov             rbx, 4294967296
+                mov             rdi, r10
                 call            mul_long_short
-;shifst number one dword left
-                call			mul_long_short
+                call            mul_long_short
+                pop             rdi
+
+;rbx - current "digit", rdi - address of the rest of the number
+                mov             rbx, [rdi]
+                sub             rdi, 8
+               
+		push            rdi
+		push            rsi                
+;zeroize buffer
+		mov             rdi, r8
+                call            set_zero
+               
+;we need to save the number in r8
+                mov             rcx, 128
+                call            add_long_long
+                add             rcx, rcx
+
+                call            mul_long_short
+;it is neccesary to add new number to the current result
+                mov             r8, rdi
+                mov             rsi, r8
+                mov             rdi, r10
+                call            add_long_long
+;repeat and action if rcx is not zero(rest of the multiplier presents)                
+		pop             rsi
+                pop             rdi
                 dec             r9
-;r9 == 0 -> all qword have been added to the result
-                jnz             .sum_loop
-;all qwords are passed, rdi -> product
-                mov             rdi, r8
+                jnz             .loop
+
+;roll back to the original rsp
+                add             rsp, 2 * NUMBER_SIZE
                 pop             rsi
-				pop             rcx
-                ret
- 
-; adds two long number
+       		pop             rcx
+	        ret
+
+
+ ; adds two long number
 ;    rdi -- address of summand #1 (long number)
 ;    rsi -- address of summand #2 (long number)
 ;    rcx -- length of long numbers in qwords
@@ -372,8 +383,3 @@ invalid_char_msg:
                 db              "Invalid character: "
 invalid_char_msg_size: equ             $ - invalid_char_msg
  
-                section         .bss
-; declaring buffer as automatically zero-filled variable at runtime
-buffer:
-                resb 128
-; declaring space for storing data in bytes
