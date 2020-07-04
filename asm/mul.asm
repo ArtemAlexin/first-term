@@ -31,29 +31,29 @@ _start:
 ; result:
 ;    r10 -- address of product
 mul_long_long:
-		push            rcx
+				push            rcx
                 push            rsi
-		push            rdi		
+				push            rdi		
 
-		mov             rcx, 2 * LENGTH               
+				add             rcx, rcx               
                 mov             r9, rcx
-
+				mov 			r11, rcx
 ;it is neccesary to fill current result with zeroes
                 mov             rdi, r10
                 call            set_zero
                 pop             rdi
                 
 ;move to the last "digit"
-		lea             rdi, [rdi + 8 * r9 - 8]		
-                sub             rsp, 2 * SIZE
+				lea             rdi, [rdi + 8 * r9 - 8]
+                sub             rsp, r11 * 16
                 lea             r8, [rsp]
- 		clc
+				clc
 ;multiplying loop
 .loop:
 ;we need to shift left the result one category, namely multiply it by qword size(4294967296 * 2)
 ;but as the qword size doesn't fit the register, we will multiply r10 by dword size twice 
-		push            rdi               
-		mov             rbx, 4294967296
+				push            rdi               
+				mov             rbx, 4294967296
                 mov             rdi, r10
                 call            mul_long_short
                 call            mul_long_short
@@ -63,14 +63,14 @@ mul_long_long:
                 mov             rbx, [rdi]
                 sub             rdi, 8
                
-		push            rdi
-		push            rsi                
+				push            rdi
+				push            rsi                
 ;zeroize buffer
-		mov             rdi, r8
+				mov             rdi, r8
                 call            set_zero
                
 ;we need to save the number in r8
-                mov             rcx, LENGTH
+                mov             rcx, r11
                 call            add_long_long
                 add             rcx, rcx
 
@@ -81,16 +81,16 @@ mul_long_long:
                 mov             rdi, r10
                 call            add_long_long
 ;repeat and action if rcx is not zero(rest of the multiplier presents)                
-		pop             rsi
+				pop             rsi
                 pop             rdi
                 dec             r9
                 jnz             .loop
 
 ;roll back to the original rsp
-                add             rsp, 2 * SIZE
+                add             rsp, r11 * 16
                 pop             rsi
-       		pop             rcx
-	        ret
+				pop             rcx
+				ret
 
 
  ; adds two long number
