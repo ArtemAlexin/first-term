@@ -93,7 +93,7 @@ struct big_integer {
     friend std::string to_string(big_integer const &);
 
 private:
-    size_t arrSize() const;
+    size_t arr_size() const;
 
     uint32_t operator[](size_t) const;
     uint32_t& operator[](size_t);
@@ -104,19 +104,19 @@ private:
 
     big_integer(int32_t, size_t, size_t);
 
-    void toNormalForm();
+    void to_normal_form();
 
-    void updateSign(bool);
+    void update_sign(bool);
 
     big_integer inv() const;
 
-    big_integer toUnsignedCompl() const;
+    big_integer to_unsigned_comp() const;
 
     big_integer addingCode() const;
 
-    uint32_t divLongShort(uint32_t x);
+    uint32_t div_long_short(uint32_t x);
 
-    static big_integer bitOperation(big_integer const &, big_integer const &,
+    static big_integer bit_operation(big_integer const &, big_integer const &,
                                     const std::function<uint32_t(uint32_t, uint32_t)> &,
                                     const std::function<int32_t(int32_t, int32_t)> &);
 
