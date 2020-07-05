@@ -106,13 +106,11 @@ private:
 
     void to_normal_form();
 
-    void update_sign(bool);
-
     big_integer inv() const;
 
     big_integer to_unsigned_comp() const;
 
-    big_integer addingCode() const;
+    big_integer adding_code() const;
 
     uint32_t div_long_short(uint32_t x);
 
@@ -120,8 +118,6 @@ private:
                                     const std::function<uint32_t(uint32_t, uint32_t)> &,
                                     const std::function<int32_t(int32_t, int32_t)> &);
 
-
-    bool isZero() const;
 
     uint32_t trial(uint64_t, uint64_t, big_integer const &) const;
 
@@ -133,3 +129,4 @@ private:
     int32_t sign;
     std::vector<uint32_t> value;
 };
+const big_integer ZERO(0);
