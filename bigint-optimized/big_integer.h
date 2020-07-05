@@ -101,7 +101,7 @@ private:
     bool less(const big_integer &, const std::function<bool(uint32_t, uint32_t)> &) const;
 
     big_integer(int32_t, size_t);
-    git reset --hard HEAD^
+
     big_integer(int32_t, size_t, size_t);
 
     void to_normal_form();
