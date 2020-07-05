@@ -6,40 +6,8 @@
 static const uint64_t BLOCK_SIZE = static_cast<uint64_t>(UINT32_MAX) + 1;
 static const uint32_t BITS_NUM = 32;
 
-static int32_t getSign(bool val) {
+static int32_t get_sign(bool val) {
     return val ? 1 : -1;
-}
-
-static bool less(uint32_t f, uint32_t g) {
-    return f < g;
-}
-
-static uint32_t and_(uint32_t f, uint32_t s) {
-    return f & s;
-}
-
-static uint32_t xor_(uint32_t f, uint32_t s) {
-    return f ^ s;
-}
-
-static uint32_t or_(uint32_t f, uint32_t s) {
-    return f | s;
-}
-
-static int32_t andSign(int32_t f, int32_t s) {
-    return getSign(f >= 0 || s >= 0);
-}
-
-static uint32_t orSign(int32_t f, int32_t s) {
-    return getSign(f >= 0 && s >= 0);
-}
-
-static uint32_t xorSign(int32_t f, int32_t s) {
-    return getSign((f >= 0 || s <= 0) && (f <= 0 || s >= 0));
-}
-
-void big_integer::update_sign(bool cond) {
-    sign = getSign(cond);
 }
 
 big_integer::big_integer() {
@@ -64,7 +32,7 @@ big_integer::big_integer(int32_t sign, size_t size) {
     this->sign = sign;
 }
 
-big_integer::big_integer(int32_t sign, size_t size, size_t extraReserveSize) {
+big_integer::big_integer(int32_t sign, size_t size, size_t extra_reverse_size) {
     value.resize(size);
     this->sign = sign;
 }
@@ -76,7 +44,7 @@ big_integer::big_integer(int num) {
     } else {
         value.push_back(static_cast<uint32_t>(abs(num)));
     }
-    update_sign(num >= 0);
+    sign = get_sign(num >= 0);
 }
 
 big_integer::big_integer(std::string const &s) {
@@ -87,14 +55,10 @@ big_integer::big_integer(std::string const &s) {
         if (s[i] == '-') {
             break;
         }
-        if(i == 43) {
-            int a = 0;
-            a++;
-        }
         *this += (shift * static_cast<uint32_t>(s[i] - '0'));
         shift *= 10;
     }
-    update_sign(s[0] != '-' || (s[0] == '-' && isZero()));
+    sign = get_sign(s[0] != '-');
     to_normal_form();
 }
 
@@ -107,15 +71,15 @@ uint32_t & big_integer::operator[](size_t id) {
 uint32_t big_integer::operator[](size_t id) const{
     return value[id];
 }
-bool big_integer::isZero() const {
-    return (value.size() == 1 && value[0] == 0);
-}
 
 big_integer::~big_integer() {}
 
 void big_integer::to_normal_form() {
     while (value.size() > 1 && value.back() == 0)
         value.pop_back();
+    if(value.size() == 1 && value.back() == 0) {
+        sign = 1;
+    }
 }
 
 big_integer big_integer::inv() const {
@@ -139,7 +103,7 @@ big_integer big_integer::to_unsigned_comp() const {
     return res;
 }
 
-big_integer big_integer::addingCode() const {
+big_integer big_integer::adding_code() const {
     big_integer res = inv();
     if (res.sign == 1) {
         return res;
@@ -197,7 +161,7 @@ big_integer big_integer::operator+() const {
 
 big_integer big_integer::operator-() const {
     big_integer res(*this);
-    int32_t ns = getSign(res.isZero());
+    int32_t ns = get_sign(res == ZERO);
     res.sign *= ns;
     return res;
 }
@@ -259,7 +223,7 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
         return f + (-s);
     }
     big_integer g(f), l(s);
-    int32_t rs = getSign(g >= l);
+    int32_t rs = get_sign(g >= l);
     if (rs == -1) {
         std::swap(g, l);
     }
@@ -278,7 +242,7 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
 }
 
 big_integer operator*(big_integer const &f, big_integer const &s) {
-    if (f.isZero() || s.isZero()) {
+    if (f == ZERO || s == ZERO) {
         return big_integer();
     }
     big_integer res(f.sign * s.sign, f.arr_size() + s.arr_size());
@@ -301,7 +265,7 @@ uint32_t big_integer::div_long_short(uint32_t x) {
     if (x == 0) {
         throw std::runtime_error("division by zero");
     }
-    if (isZero()) {
+    if (*this == ZERO) {
         return 0;
     }
     uint32_t shift = 0;
@@ -344,7 +308,7 @@ void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
 }
 
 big_integer operator/(big_integer a, big_integer const &b) {
-    if (b.isZero()) {
+    if (b == ZERO) {
         throw std::runtime_error("Division by zero");
     } else if (a.arr_size() < b.arr_size()) {
         big_integer res;
@@ -383,22 +347,46 @@ big_integer operator%(big_integer const &f, big_integer const &s) {
     return f - (f / s) * s;
 }
 
+static uint32_t and_(uint32_t f, uint32_t s) {
+    return f & s;
+}
+
+static uint32_t xor_(uint32_t f, uint32_t s) {
+    return f ^ s;
+}
+
+static uint32_t or_(uint32_t f, uint32_t s) {
+    return f | s;
+}
+
+static int32_t andSign(int32_t f, int32_t s) {
+    return get_sign(f >= 0 || s >= 0);
+}
+
+static uint32_t orSign(int32_t f, int32_t s) {
+    return get_sign(f >= 0 && s >= 0);
+}
+
+static uint32_t xorSign(int32_t f, int32_t s) {
+    return get_sign((f >= 0 || s <= 0) && (f <= 0 || s >= 0));
+}
+
 big_integer big_integer::bit_operation(big_integer const &f,
                                     big_integer const &s,
-                                    const std::function<uint32_t(uint32_t, uint32_t)> &binaryOperation,
-                                    const std::function<int32_t(int32_t, int32_t)> &signResult) {
-    big_integer g = f.addingCode(), l = s.addingCode();
-    uint32_t extraDigit = 0;
+                                    const std::function<uint32_t(uint32_t, uint32_t)> &binary_operation,
+                                    const std::function<int32_t(int32_t, int32_t)> &sign_result) {
+    big_integer g = f.adding_code(), l = s.adding_code();
+    uint32_t extra_digit = 0;
     if (g.arr_size() < l.arr_size()) {
         std::swap(g, l);
     }
     if (l.sign < 0) {
-        extraDigit = UINT32_MAX;
+        extra_digit = UINT32_MAX;
     }
     for (size_t i = 0; i < g.arr_size(); i++) {
-        g.value.change(i, binaryOperation(g[i], (i >= l.arr_size() ? extraDigit : l[i])));
+        g.value.change(i, binary_operation(g[i], (i >= l.arr_size() ? extra_digit : l[i])));
     }
-    g.sign = signResult(f.sign, s.sign);
+    g.sign = sign_result(f.sign, s.sign);
     g.to_normal_form();
     return g.to_unsigned_comp();
 }
@@ -418,14 +406,14 @@ big_integer operator^(big_integer const &f, big_integer const &s) {
 std::string to_string(big_integer const &f) {
     big_integer num(f);
     std::string str;
-    if (num.isZero()) {
+    if (num == ZERO) {
         return "0";
     }
-    while (!num.isZero()) {
+    while (num != ZERO) {
         uint32_t c = num.div_long_short(10);
         str.push_back('0' + char(c));
     }
-    if (num.sign == -1) {
+    if (f.sign == -1) {
         str.push_back('-');
     }
     std::reverse(str.begin(), str.end());
@@ -460,7 +448,7 @@ big_integer operator>>(const big_integer &f, int s) {
     }
     uint32_t shift = static_cast<uint32_t>(s) % BITS_NUM, digits = static_cast<uint32_t>(s) / BITS_NUM;
     if (cur.sign == -1) {
-        cur = cur.addingCode();
+        cur = cur.adding_code();
         for (int32_t i = 0; i < int32_t(digits) - 1; i++) {
             cur.value.push_back(UINT32_MAX);
         }
@@ -501,6 +489,10 @@ bool operator==(big_integer const &f, big_integer const &s) {
 
 bool operator!=(big_integer const &f, big_integer const &s) {
     return !(f == s);
+}
+
+static bool less(uint32_t f, uint32_t g) {
+    return f < g;
 }
 
 bool big_integer::less(const big_integer &s, const std::function<bool(uint32_t, uint32_t)> &fu) const {
