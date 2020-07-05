@@ -270,7 +270,7 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
         if (carry) {
             sub += BLOCK_SIZE;
         }
-        g[i] = static_cast<uint32_t>(sub);
+        g.value.change(i, static_cast<uint32_t>(sub));
     }
     g.to_normal_form();
     g.sign = rs;
