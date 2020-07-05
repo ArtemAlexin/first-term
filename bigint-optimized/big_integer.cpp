@@ -124,7 +124,7 @@ big_integer big_integer::inv() const {
     }
     big_integer res(*this);
     for (size_t i = 0; i < res.arr_size(); i++) {
-        res[i] = ~res[i];
+        res.value.change(i, ~res[i]);
     }
     return res;
 }
@@ -246,7 +246,7 @@ big_integer operator+(big_integer const &f, big_integer const &s) {
         if (carry) {
             add -= BLOCK_SIZE;
         }
-        res[i] = static_cast<uint32_t>(add);
+        res.value.change(i, add);
     }
     return res;
 }
@@ -288,7 +288,7 @@ big_integer operator*(big_integer const &f, big_integer const &s) {
             __uint128_t mul_res =
                     res[i + j] + static_cast<uint64_t>(f[i]) * (j < s.arr_size() ? s[j] : 0) +
                     carry;
-            res[i + j] = static_cast<uint32_t>(mul_res % BLOCK_SIZE);
+            res.value.change(i + j, static_cast<uint32_t>(mul_res % BLOCK_SIZE));
             carry = static_cast<uint32_t>(mul_res / BLOCK_SIZE);
         }
     }
@@ -307,7 +307,7 @@ uint32_t big_integer::div_long_short(uint32_t x) {
     uint32_t shift = 0;
     for (size_t i = value.size(); i > 0; --i) {
         uint64_t tmp = (static_cast<uint64_t>(shift) << 32u) + value[i - 1];
-        value[i - 1] = tmp / x;
+        value.change(i - 1, tmp / x);
         shift = tmp % x;
     }
     to_normal_form();
@@ -337,8 +337,8 @@ void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
     int64_t borrow = 0, diff;
     auto BASE = static_cast<int64_t>(BLOCK_SIZE);
     for (uint64_t i = 0; i < m + 1; i++) {
-        diff = int64_t(value[i + k]) - int64_t(dq[i]) - borrow + BASE;
-        value[i + k] = uint32_t(diff % BASE);
+        diff = static_cast<int64_t>(value[i + k]) - static_cast<int64_t>(dq[i]) - borrow + BASE;
+        value.change(i + k, static_cast<uint32_t>(diff % BASE));
         borrow = 1 - diff / BASE;
     }
 }
@@ -371,7 +371,7 @@ big_integer operator/(big_integer a, big_integer const &b) {
             qt--;
             dq = big_integer(d) * qt;
         }
-        q[k] = qt;
+        q.value.change(k, qt);
         r.difference(dq, static_cast<uint64_t>(k), m);
     }
     q.to_normal_form();
@@ -396,7 +396,7 @@ big_integer big_integer::bit_operation(big_integer const &f,
         extraDigit = UINT32_MAX;
     }
     for (size_t i = 0; i < g.arr_size(); i++) {
-        g[i] = binaryOperation(g[i], (i >= l.arr_size() ? extraDigit : l[i]));
+        g.value.change(i, binaryOperation(g[i], (i >= l.arr_size() ? extraDigit : l[i])));
     }
     g.sign = signResult(f.sign, s.sign);
     g.to_normal_form();
@@ -446,7 +446,7 @@ big_integer operator<<(const big_integer &f, int32_t s) {
         uint32_t tmp = (res[i] << shift);
         tmp += r;
         r = (res[i] >> (BITS_NUM - shift));
-        res[i] = tmp;
+        res.value.change(i, tmp);
     }
     res.value.push_back(r);
     res.to_normal_form();
@@ -473,11 +473,11 @@ big_integer operator>>(const big_integer &f, int s) {
         res.value.push_back(cur[i]);
     }
     for (size_t i = 0; i < res.arr_size() - 1; i++) {
-        res[i] >>= shift;
+        res.value.change(i, res[i] >> shift);
         uint32_t t = res[i + 1] << (BITS_NUM - shift);
-        res[i] += t;
+        res.value.change(i, res[i] + t);
     }
-    res.value.back() >>= shift;
+    res.value.change(res.value.size() - 1, res.value.back() >> shift);
     res.to_normal_form();
     if (res.sign < 0) {
         res.value.pop_back();
