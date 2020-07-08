@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
-
+#include <algorithm>
 struct my_buffer {
 private:
     struct big_buffer {
@@ -17,25 +17,23 @@ private:
         size_t capacity;
         std::shared_ptr<uint32_t> data;
     };
-    static const size_t MAX_SIZE = sizeof(big_buffer) / sizeof(uint32_t);
+    static constexpr size_t MAX_SIZE = sizeof(big_buffer) / sizeof(uint32_t);
 
     union {
-        big_buffer _big;
-        uint32_t _small[MAX_SIZE];
+        big_buffer big_b;
+        uint32_t small_b[MAX_SIZE];
     };
 
-    size_t _size;
-    bool is_big;
-    uint32_t *_data;
-
-    size_t get_size();
-
+    size_t size_b;
+    uint32_t *data_b;
+    bool is_big() const;
+    size_t get_capacity() const;
     void create_unique();
 
 public:
     my_buffer();
-    uint32_t& back();
     uint32_t back() const;
+    uint32_t& back();
     my_buffer(my_buffer const &);
 
     ~my_buffer();
@@ -48,11 +46,10 @@ public:
 
     void push_back(uint32_t x);
     
-    uint32_t &operator[](size_t index) const;
+    uint32_t &operator[](size_t index);
+    uint32_t operator[] (size_t index) const;
 
     size_t size() const;
-
-    my_buffer & change(size_t index, uint32_t val);
 };
 
 #endif

@@ -10,9 +10,8 @@ static int32_t get_sign(bool val) {
     return val ? 1 : -1;
 }
 
-big_integer::big_integer() {
+big_integer::big_integer() : sign(1), value() {
     value.push_back(0);
-    sign = 1;
 }
 
 big_integer::big_integer(uint64_t num) {
@@ -38,7 +37,7 @@ big_integer::big_integer(int32_t sign, size_t size, size_t extra_reverse_size) {
 }
 big_integer::big_integer(big_integer const &other) = default;
 
-big_integer::big_integer(int num) {
+big_integer::big_integer(int num) : value() {
     if (num == INT32_MIN) {
         value.push_back(static_cast<uint32_t>(INT32_MAX) + 1);
     } else {
@@ -47,13 +46,15 @@ big_integer::big_integer(int num) {
     sign = get_sign(num >= 0);
 }
 
-big_integer::big_integer(std::string const &s) {
+big_integer::big_integer(std::string const &s) : big_integer() {
     big_integer shift(1);
-    value.push_back(0);
-    this->sign = 1;
     for (auto i = static_cast<int32_t>(s.length() - 1); i >= 0; i--) {
         if (s[i] == '-') {
             break;
+        }
+        if(i == 42) {
+            int a = 0;
+            a++;
         }
         *this += (shift * static_cast<uint32_t>(s[i] - '0'));
         shift *= 10;
@@ -88,7 +89,7 @@ big_integer big_integer::inv() const {
     }
     big_integer res(*this);
     for (size_t i = 0; i < res.arr_size(); i++) {
-        res.value.change(i, ~res[i]);
+        res[i] = ~res[i];
     }
     return res;
 }
@@ -210,7 +211,7 @@ big_integer operator+(big_integer const &f, big_integer const &s) {
         if (carry) {
             add -= BLOCK_SIZE;
         }
-        res.value.change(i, add);
+        res[i] = add;
     }
     return res;
 }
@@ -234,7 +235,7 @@ big_integer operator-(big_integer const &f, big_integer const &s) {
         if (carry) {
             sub += BLOCK_SIZE;
         }
-        g.value.change(i, static_cast<uint32_t>(sub));
+        g[i] = static_cast<uint32_t>(sub);
     }
     g.to_normal_form();
     g.sign = rs;
@@ -252,7 +253,7 @@ big_integer operator*(big_integer const &f, big_integer const &s) {
             __uint128_t mul_res =
                     res[i + j] + static_cast<uint64_t>(f[i]) * (j < s.arr_size() ? s[j] : 0) +
                     carry;
-            res.value.change(i + j, static_cast<uint32_t>(mul_res % BLOCK_SIZE));
+            res[i + j] = static_cast<uint32_t>(mul_res % BLOCK_SIZE);
             carry = static_cast<uint32_t>(mul_res / BLOCK_SIZE);
         }
     }
@@ -271,7 +272,7 @@ uint32_t big_integer::div_long_short(uint32_t x) {
     uint32_t shift = 0;
     for (size_t i = value.size(); i > 0; --i) {
         uint64_t tmp = (static_cast<uint64_t>(shift) << 32u) + value[i - 1];
-        value.change(i - 1, tmp / x);
+        value[i - 1] = tmp / x;
         shift = tmp % x;
     }
     to_normal_form();
@@ -302,7 +303,7 @@ void big_integer::difference(big_integer const &dq, uint64_t k, uint64_t m) {
     auto BASE = static_cast<int64_t>(BLOCK_SIZE);
     for (uint64_t i = 0; i < m + 1; i++) {
         diff = static_cast<int64_t>(value[i + k]) - static_cast<int64_t>(dq[i]) - borrow + BASE;
-        value.change(i + k, static_cast<uint32_t>(diff % BASE));
+        value[i + k] = static_cast<uint32_t>(diff % BASE);
         borrow = 1 - diff / BASE;
     }
 }
@@ -335,7 +336,7 @@ big_integer operator/(big_integer a, big_integer const &b) {
             qt--;
             dq = big_integer(d) * qt;
         }
-        q.value.change(k, qt);
+        q[k] = qt;
         r.difference(dq, static_cast<uint64_t>(k), m);
     }
     q.to_normal_form();
@@ -384,7 +385,7 @@ big_integer big_integer::bit_operation(big_integer const &f,
         extra_digit = UINT32_MAX;
     }
     for (size_t i = 0; i < g.arr_size(); i++) {
-        g.value.change(i, binary_operation(g[i], (i >= l.arr_size() ? extra_digit : l[i])));
+        g[i]  = binary_operation(g[i], (i >= l.arr_size() ? extra_digit : l[i]));
     }
     g.sign = sign_result(f.sign, s.sign);
     g.to_normal_form();
@@ -434,7 +435,7 @@ big_integer operator<<(const big_integer &f, int32_t s) {
         uint32_t tmp = (res[i] << shift);
         tmp += r;
         r = (res[i] >> (BITS_NUM - shift));
-        res.value.change(i, tmp);
+        res[i] = tmp;
     }
     res.value.push_back(r);
     res.to_normal_form();
@@ -461,11 +462,11 @@ big_integer operator>>(const big_integer &f, int s) {
         res.value.push_back(cur[i]);
     }
     for (size_t i = 0; i < res.arr_size() - 1; i++) {
-        res.value.change(i, res[i] >> shift);
+        res[i] >>= shift;
         uint32_t t = res[i + 1] << (BITS_NUM - shift);
-        res.value.change(i, res[i] + t);
+        res[i] += t;
     }
-    res.value.change(res.value.size() - 1, res.value.back() >> shift);
+    res[res.value.size() - 1] = res.value.back() >> shift;
     res.to_normal_form();
     if (res.sign < 0) {
         res.value.pop_back();
