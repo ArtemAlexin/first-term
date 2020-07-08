@@ -14,8 +14,7 @@ private:
         big_buffer& operator=(big_buffer const &);
         ~big_buffer();
 
-        size_t capacity;
-        std::shared_ptr<uint32_t> data;
+        std::shared_ptr<std::vector<uint32_t> > data;
     };
     static constexpr size_t MAX_SIZE = sizeof(big_buffer) / sizeof(uint32_t);
 
