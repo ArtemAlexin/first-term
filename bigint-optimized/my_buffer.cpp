@@ -19,7 +19,7 @@ my_buffer::my_buffer() : size_b(0), data_b(small_b) {
 }
 
 size_t my_buffer::get_capacity() const {
-    return is_big() ? big_b.data->size() : MAX_SIZE;
+    return is_big() ? big_b.data->capacity() : MAX_SIZE;
 }
 
 my_buffer::~my_buffer() {
