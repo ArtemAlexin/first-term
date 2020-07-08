@@ -1,6 +1,6 @@
 #include <cstring>
 #include "my_buffer.h"
-
+#include <new>
 static const uint32_t UINT_SIZE = sizeof(uint32_t);
 
 my_buffer::big_buffer::big_buffer(size_t cap) :
@@ -54,7 +54,8 @@ void my_buffer::create_unique() {
 my_buffer &my_buffer::operator=(my_buffer const &buf) {
     if (buf.is_big()) {
         if (!is_big()) {
-            std::fill(small_b, small_b + MAX_SIZE, 0);
+            auto* ptr = new (small_b) big_buffer;
+            big_b = *ptr;
         }
         big_b = buf.big_b;
         data_b = big_b.data.get();
@@ -78,7 +79,8 @@ void my_buffer::resize(size_t sz) {
     big_buffer nv(sz);
     std::copy(data_b, data_b + get_capacity(), nv.data.get());
     if (!is_big()) {
-        memset(small_b, 0, UINT_SIZE * MAX_SIZE);
+        auto* ptr = new (small_b) big_buffer;
+        big_b = *ptr;
     }
     big_b = nv;
     data_b = big_b.data.get();
@@ -105,7 +107,8 @@ void my_buffer::push_back(uint32_t x) {
         big_buffer tmp(2 * cap);
         std::copy(data_b, data_b + cap, tmp.data.get());
         if (!is_big()) {
-            memset(small_b, 0, UINT_SIZE * MAX_SIZE);
+            auto* ptr = new (small_b) big_buffer;
+            big_b = *ptr;
         }
         big_b = tmp;
         data_b = big_b.data.get();
@@ -127,5 +130,5 @@ uint32_t& my_buffer::back() {
 }
 
 bool my_buffer::is_big() const {
-    return data_b == big_b.data.get();
+    return data_b != small_b;
 }
