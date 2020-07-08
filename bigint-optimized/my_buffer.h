@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <memory>
 #include <algorithm>
+#include<vector>
 struct my_buffer {
 private:
     struct big_buffer {
