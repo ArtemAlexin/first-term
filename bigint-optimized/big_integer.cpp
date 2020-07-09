@@ -26,7 +26,7 @@ big_integer::big_integer(uint32_t num) {
     value.push_back(num);
 }
 
-big_integer::big_integer(int32_t sign, size_t size) {
+big_integer::big_integer(int32_t sign, size_t size)  {
     value.resize(size);
     this->sign = sign;
 }
@@ -52,7 +52,7 @@ big_integer::big_integer(std::string const &s) : big_integer() {
         if (s[i] == '-') {
             break;
         }
-        if(i == 42) {
+        if(i == 0){
             int a = 0;
             a++;
         }
