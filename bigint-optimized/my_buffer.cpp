@@ -31,7 +31,7 @@ void my_buffer::create_unique() {
     }
     auto tmp = new std::vector<uint32_t>(size_b);
     std::copy(data_b, data_b + size_b, tmp->begin());
-    big_b = *(new (&big_b) std::shared_ptr<std::vector<uint32_t>>(tmp));
+    big_b.reset(tmp);
     data_b = big_b->data();
 }
 
