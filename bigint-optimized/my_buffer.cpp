@@ -63,7 +63,7 @@ void my_buffer::resize(size_t sz) {
     }
     if(sz > MAX_SIZE) {
         auto tmp = new std::vector<uint32_t>(sz);
-        std::copy(data_b, data_b + size_b, tmp->begin());
+        std::copy(data_b, data_b + last_size, tmp->begin());
         alloc_pl(tmp);
         return;
     }
