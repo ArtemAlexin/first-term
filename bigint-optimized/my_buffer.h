@@ -6,30 +6,24 @@
 #include <memory>
 #include <algorithm>
 #include<vector>
+
 struct my_buffer {
 private:
-    struct big_buffer {
-        explicit big_buffer(size_t);
-        big_buffer();
 
-        big_buffer& operator=(big_buffer const &);
-        ~big_buffer();
-
-        std::shared_ptr<std::vector<uint32_t> > data;
-    };
-    static constexpr size_t MAX_SIZE = sizeof(big_buffer) / sizeof(uint32_t);
+    static constexpr size_t MAX_SIZE = sizeof(std::shared_ptr<std::vector<uint32_t> >) / sizeof(uint32_t);
 
     union {
-        big_buffer big_b;
+        std::shared_ptr<std::vector<uint32_t> > big_b;
         uint32_t small_b[MAX_SIZE];
     };
 
     size_t size_b;
     uint32_t *data_b;
     bool is_big() const;
-    size_t get_capacity() const;
     void create_unique();
-
+    void clear();
+    void alloc_pl(std::vector<uint32_t> *);
+    void alloc_sm();
 public:
     my_buffer();
     uint32_t back() const;
