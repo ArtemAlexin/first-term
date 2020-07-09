@@ -3,8 +3,6 @@
 #include <new>
 #include <iostream>
 
-static const uint32_t UINT_SIZE = sizeof(uint32_t);
-
 my_buffer::my_buffer() : size_b(0), data_b(small_b) {}
 void my_buffer::clear() {
     if(is_big()) {
@@ -33,8 +31,7 @@ void my_buffer::create_unique() {
     }
     auto tmp = new std::vector<uint32_t>(size_b);
     std::copy(data_b, data_b + size_b, tmp->begin());
-    big_b.~shared_ptr();
-    new (small_b) std::shared_ptr<std::vector<uint32_t>>(tmp);
+    big_b = *(new (&big_b) std::shared_ptr<std::vector<uint32_t>>(tmp));
     data_b = big_b->data();
 }
 
@@ -55,21 +52,23 @@ my_buffer &my_buffer::operator=(my_buffer const &buf) {
 void my_buffer::resize(size_t sz) {
     create_unique();
     size_t last_size = size_b;
-    size_b = sz;
     if(is_big()) {
         big_b->resize(sz);
         data_b = big_b->data();
+        size_b = sz;
         return;
     }
     if(sz > MAX_SIZE) {
-        auto tmp = new std::vector<uint32_t>(sz);
-        std::copy(data_b, data_b + last_size, tmp->begin());
+        auto tmp = new std::vector<uint32_t>(data_b, data_b + last_size);
+        tmp->resize(sz);
         alloc_pl(tmp);
+        size_b = sz;
         return;
     }
     if(sz > last_size) {
         std::fill(data_b + last_size, data_b + sz, 0);
     }
+    size_b = sz;
 }
 
 uint32_t &my_buffer::operator[] (size_t index) {
@@ -123,11 +122,11 @@ bool my_buffer::is_big() const {
     return data_b != small_b;
 }
 void my_buffer::alloc_pl(std::vector<uint32_t> *tmp) {
-    new (small_b) std::shared_ptr<std::vector<uint32_t>>(tmp);
+    new (&big_b) std::shared_ptr<std::vector<uint32_t>>(tmp);
     data_b = big_b->data();
 }
 void my_buffer::alloc_sm() {
     if(!is_big()) {
-        new (small_b) std::shared_ptr<std::vector<uint32_t>>;
+        new (&big_b) std::shared_ptr<std::vector<uint32_t>>;
     }
 }
