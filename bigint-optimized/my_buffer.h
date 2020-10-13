@@ -23,7 +23,7 @@ private:
     void create_unique();
     void clear();
     void alloc_pl(std::vector<uint32_t> *);
-    void alloc_sm();
+    void alloc_sm(my_buffer const &other);
 public:
     my_buffer();
     uint32_t back() const;

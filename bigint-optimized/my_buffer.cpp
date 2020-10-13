@@ -15,9 +15,7 @@ my_buffer::~my_buffer() {
 
 my_buffer::my_buffer(my_buffer const &buf) : my_buffer() {
     if (buf.is_big()) {
-        alloc_sm();
-        big_b = buf.big_b;
-        data_b = big_b->data();
+        alloc_sm(buf);
     } else {
         std::copy(buf.small_b, buf.small_b + buf.size_b, data_b);
         data_b = small_b;
@@ -29,17 +27,14 @@ void my_buffer::create_unique() {
     if (!is_big() || big_b.unique()) {
         return;
     }
-    auto tmp = new std::vector<uint32_t>(size_b);
-    std::copy(data_b, data_b + size_b, tmp->begin());
+    auto tmp = new std::vector<uint32_t>(data_b, data_b + size_b);
     big_b.reset(tmp);
     data_b = big_b->data();
 }
 
 my_buffer &my_buffer::operator=(my_buffer const &buf) {
     if(buf.is_big()) {
-        alloc_sm();
-        big_b = buf.big_b;
-        data_b = big_b->data();
+        alloc_sm(buf);
     } else {
         clear();
         std::copy(buf.small_b, buf.small_b + buf.size_b, small_b);
@@ -125,8 +120,11 @@ void my_buffer::alloc_pl(std::vector<uint32_t> *tmp) {
     new (&big_b) std::shared_ptr<std::vector<uint32_t>>(tmp);
     data_b = big_b->data();
 }
-void my_buffer::alloc_sm() {
+void my_buffer::alloc_sm(my_buffer const &buf) {
     if(!is_big()) {
-        new (&big_b) std::shared_ptr<std::vector<uint32_t>>;
+        new (&big_b) std::shared_ptr<std::vector<uint32_t>>(buf.big_b);
+    } else {
+        big_b = buf.big_b;
     }
+    data_b = big_b->data();
 }
