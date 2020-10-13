@@ -9,6 +9,7 @@ void my_buffer::clear() {
         big_b.~shared_ptr();
     }
 }
+
 my_buffer::~my_buffer() {
    clear();
 }
